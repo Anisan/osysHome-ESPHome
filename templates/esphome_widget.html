@@ -1,0 +1,65 @@
+<div class="card h-100">  
+    <div class="card-header d-flex align-items-center">  
+        <i class="fas fa-microchip text-primary me-2"></i>  
+        <h6 class="card-title mb-0">ESPHome</h6>  
+    </div>  
+    <div class="card-body">  
+        <div class="row g-3">  
+            <div class="col-6">  
+                <div class="d-flex align-items-center">  
+                    <div class="flex-shrink-0">  
+                        <div class="bg-info bg-opacity-10 rounded p-2">  
+                            <i class="fas fa-server text-info"></i>  
+                        </div>  
+                    </div>  
+                    <div class="flex-grow-1 ms-3">  
+                        <div class="fw-bold">{{ total_devices }}</div>  
+                        <small class="text-muted">{{ _('Total Devices') }}</small>  
+                    </div>  
+                </div>  
+            </div>  
+            <div class="col-6">  
+                <div class="d-flex align-items-center">  
+                    <div class="flex-shrink-0">  
+                        <div class="bg-success bg-opacity-10 rounded p-2">  
+                            <i class="fas fa-wifi text-success"></i>  
+                        </div>  
+                    </div>  
+                    <div class="flex-grow-1 ms-3">  
+                        <div class="fw-bold">{{ connected_devices }}</div>  
+                        <small class="text-muted">{{ _('Connected') }}</small>  
+                    </div>  
+                </div>  
+            </div>  
+        </div>  
+          
+        {% if recent_data %}  
+        <hr class="my-3">  
+        <h6 class="mb-2">{{ _('Recent Sensor Data') }}:</h6>  
+        <div class="list-group list-group-flush">  
+            {% for sensor in recent_data %}  
+            <div class="list-group-item px-0 py-2 border-0">  
+                <div class="d-flex justify-content-between align-items-center">  
+                    <div>  
+                        <div class="fw-semibold">{{ sensor.name }}</div>  
+                        <small class="text-muted">  
+                            {{ sensor.state }} {{ sensor.unit_of_measurement or '' }}  
+                        </small>  
+                    </div>  
+                    <small class="text-muted">  
+                        {% if sensor.last_updated %}  
+                            {{ sensor.last_updated.strftime('%H:%M') }}  
+                        {% endif %}  
+                    </small>  
+                </div>  
+            </div>  
+            {% endfor %}  
+        </div>  
+        {% endif %}  
+    </div>  
+    <div class="card-footer">  
+        <a href="/admin/ESPHome" class="btn btn-sm btn-outline-primary w-100">  
+            <i class="fas fa-cog me-1"></i>{{ _('Manage Devices') }}  
+        </a>  
+    </div>  
+</div>

@@ -1,0 +1,267 @@
+{% extends "layouts/module_admin.html" %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="ESPHome">ESPHome </a></li>
+{% endblock %}
+{% block module %}
+<div class="container-fluid" id="esphome_devices">  
+    <!-- Page Header -->  
+    <div class="row align-items-center mb-1">  
+        <div class="col-auto">
+            <img src="/ESPHome/static/ESPHome.png" alt="Logo" class="img-fluid" style="max-width: 50px;">
+        </div>
+        <div class="col">  
+            <h1 class="h3 mb-0 mt-2">{{ _('ESPHome Integration') }}</h1>  
+            <p class="text-muted">{{ _('Manage ESPHome devices and sensors') }}</p>  
+        </div>  
+        <div class="col-auto">  
+            <button type="button" class="btn btn-primary me-2" @click="addDevice()">  
+                <i class="fas fa-plus"></i> {{ _('Add Device') }}  
+            </button>  
+            <a href="?action=discover_devices" type="button" class="btn btn-info">  
+                <i class="fas fa-search"></i> {{ _('Discover') }}  
+            </a>  
+            <!--button type="button" class="btn btn-secondary" @click="openSettings()">  
+                <i class="fas fa-cog"></i> {{ _('Settings') }}  
+            </button-->  
+        </div>  
+    </div>  
+  
+    <!-- Devices Table -->  
+    <div class="row">  
+        <div class="col-12">  
+            <div class="card">  
+                <div class="card-header">  
+                    <h5 class="card-title mb-0">{{ _('ESPHome Devices') }}</h5>  
+                </div>  
+                <div class="card-body">  
+                    <div class="table-responsive">  
+                        <table class="table table-hover" id="devicesTable">  
+                            <thead>  
+                                <tr>  
+                                    <th>{{ _('Name') }}</th>  
+                                    <th>{{ _('Status') }}</th>  
+                                    <th>{{ _('Sensors') }}</th>  
+                                    <th>{{ _('Version') }}</th>  
+                                    <th>{{ _('Last Seen') }}</th>  
+                                    <th>{{ _('Actions') }}</th>  
+                                </tr>  
+                            </thead>  
+                            <tbody>  
+                                <tr v-for="device in devices" data-device-id="[[ device.id ]]">  
+                                    <td>  
+                                        <strong>[[ device.name ]]</strong>  
+                                        <br>  
+                                        <small class="text-muted">[[ device.host ]]:[[ device.port ]]</small>  
+                                    </td>  
+                                    <td>  
+                                            <span v-if="device.connected" class="badge bg-success">  
+                                                <i class="fas fa-wifi me-1"></i>{{ _('Connected') }}  
+                                            </span>  
+                                            <span v-else class="badge bg-danger">  
+                                                <i class="fas fa-wifi-slash me-1"></i>{{ _('Disconnected') }}  
+                                            </span>  
+                                    </td>  
+                                    <td>  
+                                        <span class="badge bg-info">[[ device.sensors.length ]]</span>  
+                                    </td>  
+                                    <td>  
+                                        <small v-if="device.firmware_version">[[ device.firmware_version ]]</small>  
+                                        <small v-else class="text-muted">{{ _('Unknown') }}</small>  
+                                    </td>  
+                                    <td>  
+                                        <small v-if="device.last_seen">[[ device.last_seen ]]</small>  
+                                        <small v-else class="text-muted">{{ _('Never') }}</small>  
+                                    </td>  
+                                    <td>  
+                                        <div class="btn-group" role="group">  
+                                            <button class="btn btn-sm btn-outline-primary" @click="editSensors(device)" title="{{ _('Edit Sensors') }}">  
+                                                <i class="fas fa-cogs"></i>  
+                                            </button>  
+                                            <button class="btn btn-sm btn-outline-warning" @click="editDevice(device)" title="{{ _('Edit') }}">  
+                                                <i class="fas fa-edit"></i>  
+                                            </button>  
+                                            <button class="btn btn-sm btn-outline-danger" @click="removeDevice(device)" title="{{ _('Delete') }}">  
+                                                <i class="fas fa-trash"></i>  
+                                            </button>  
+                                        </div>  
+                                    </td>  
+                                </tr>  
+                            </tbody>  
+                        </table>  
+                    </div>  
+                </div>  
+            </div>  
+        </div>  
+    </div>  
+      
+    <!-- Configuration Card -->  
+    <!--div class="row mt-4">  
+        <div class="col-12">  
+            <div class="card">  
+                <div class="card-header">  
+                    <h5 class="card-title mb-0">{{ _('Configuration') }}</h5>  
+                </div>  
+                <div class="card-body">  
+                    <form id="configForm">  
+                        <div class="row">  
+                            <div class="col-md-6">  
+                                <div class="form-check form-switch mb-3">  
+                                    <input class="form-check-input" type="checkbox" id="auto_discovery" name="auto_discovery"   
+                                           {% if settings.auto_discovery %}checked{% endif %}>  
+                                    <label class="form-check-label" for="auto_discovery">  
+                                        {{ _('Enable Auto Discovery') }}  
+                                    </label>  
+                                </div>  
+                            </div>  
+                            <div class="col-md-6">  
+                                <div class="mb-3">  
+                                    <label for="discovery_interval" class="form-label">{{ _('Discovery Interval (seconds)') }}</label>  
+                                    <input type="number" class="form-control" id="discovery_interval"   
+                                           name="discovery_interval" value="{{ settings.discovery_interval or 300 }}" min="60" max="3600">  
+                                </div>  
+                            </div>  
+                        </div>  
+                        <button type="submit" class="btn btn-primary">  
+                            <i class="fas fa-save me-1"></i>{{ _('Save Configuration') }}  
+                        </button>  
+                    </form>  
+                </div>  
+            </div>  
+        </div>  
+    </div-->  
+  
+    <!-- Add Device Modal -->  
+    <div class="modal fade" id="deviceModal" tabindex="-1" aria-labelledby="deviceModalLabel" aria-hidden="true">  
+        <div class="modal-dialog">  
+            <div class="modal-content">  
+                <div class="modal-header">  
+                    <h5 class="modal-title" id="deviceModalLabel">{{ _('ESPHome Device') }}</h5>  
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>  
+                </div>  
+                <div class="modal-body">  
+                        <div class="mb-3">  
+                            <label for="device_name" class="form-label">{{ _('Device Name') }} <span class="text-danger">*</span></label>  
+                            <input v-model="device.name" type="text" class="form-control" required>  
+                            <div class="form-text">{{ _('Unique name for this device') }}</div>  
+                        </div>  
+                        <div class="mb-3">  
+                            <label for="device_host" class="form-label">{{ _('Host/IP Address') }} <span class="text-danger">*</span></label>  
+                            <input v-model="device.host" type="text" class="form-control" required placeholder="192.168.1.100">  
+                            <div class="form-text">{{ _('IP address or hostname of the ESPHome device') }}</div>  
+                        </div>  
+                        <div class="mb-3">  
+                            <label for="device_port" class="form-label">{{ _('Port') }}</label>  
+                            <input v-model="device.port" type="number" class="form-control" value="6053" min="1" max="65535">  
+                            <div class="form-text">{{ _('ESPHome API port (default: 6053)') }}</div>  
+                        </div>  
+                        <div class="mb-3">  
+                            <label for="device_password" class="form-label">{{ _('Password (optional)') }}</label>  
+                            <input v-model="device.password" type="password" class="form-control">  
+                            <div class="form-text">{{ _('API password if configured on the device') }}</div>  
+                        </div>  
+                </div>  
+                <div class="modal-footer">  
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _('Cancel') }}</button>  
+                    <button v-if="!device.id" type="button" class="btn btn-primary" id="addDeviceBtn" @click="saveDevice()">  
+                        <i class="fas fa-plus me-1"></i>{{ _('Add') }}  
+                    </button>  
+                    <button v-if="device.id" type="button" class="btn btn-primary" id="addDeviceBtn" @click="saveDevice()">  
+                        <i class="fas fa-save me-1"></i>{{ _('Save') }}  
+                    </button>  
+                </div>  
+            </div>  
+        </div>  
+    </div>
+    <div class="modal fade" id="sensorsModal" tabindex="-1" aria-labelledby="deviceModalLabel" aria-hidden="true">  
+        <div class="modal-dialog  modal-dialog-scrollable modal-xl">  
+            <div class="modal-content">  
+                <div class="modal-header">  
+                    <h5 class="modal-title" id="deviceModalLabel">[[device.name]]</h5>  
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>  
+                </div>  
+                <div class="modal-body">  
+                    <div class="table-responsive">  
+                        <table class="table table-hover" id="devicesTable">  
+                            <thead>  
+                                <tr>  
+                                    <th>{{ _('Name') }}</th>  
+                                    <th>{{ _('State') }}</th>  
+                                    <th>{{ _('Link') }}</th>  
+                                    <th>{{ _('Actions') }}</th>  
+                                </tr>  
+                            </thead> 
+                            <tbody>  
+                                <tr v-for="sensor in device.sensors" data-device-id="[[ sensor.id ]]">  
+                                    <td> 
+                                        <strong>[[sensor.name]]</strong><br>
+                                        [[sensor.type]] - [[sensor.class]] - [[sensor.unit]]
+                                    </td>
+                                    <td> 
+                                        [[sensor.state]]
+                                    </td>
+                                    <td>
+                                        [[sensor.linked_object]].[[sensor.linked_property]][[sensor.linked_method]]
+                                    </td>
+                                    <td>
+                                        <a class="btn btn-sm btn-outline-success ms-2 ms-auto" @click="editSensor(sensor)" title="{{ _('Edit')}}"><i class="fas fa-pencil-alt"></i></a>
+                                        <button class="btn btn-sm btn-outline-danger" @click="deleteSensor(sensor)" title="{{ _('Delete') }}">  
+                                            <i class="fas fa-trash"></i>  
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>  
+                <div class="modal-footer">  
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _('Cancel') }}</button>  
+                    <button type="button" class="btn btn-primary" id="addDeviceBtn" @click="saveDevice()">  
+                        <i class="fas fa-save me-1"></i>{{ _('Save') }}  
+                    </button>  
+                </div>  
+            </div>  
+        </div>  
+    </div>
+    <div class="modal fade" id="sensorModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="exampleModalLabel">{{ _('Settings link')}}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div v-if="sensor" class="modal-body">
+                        <div>
+                            <label class="form-check-label" for="flexCheckDefault">
+                                {{ _('Linked object')}}
+                            </label>
+                            <select-with-filter placeholder="{{ _('Select object')}}" :options="objectOptions" v-model="sensor.linked_object" @changed="sensor.linked_property = null"></select-with-filter>
+                        </div>
+                        <div v-if="sensor.linked_object && sensor.linked_object in objects">
+                            <label class="form-check-label" for="flexCheckDefault">
+                                {{ _('Linked property')}}
+                            </label>
+                            <select-with-filter placeholder="{{ _('Select property')}}" :options="objects[sensor.linked_object].properties" v-model="sensor.linked_property"></select-with-filter>
+                        </div>
+                        <div v-if="sensor.linked_object && sensor.linked_object in objects">
+                            <label class="form-check-label" for="flexCheckDefault">
+                                {{ _('Linked method')}}
+                            </label>
+                            <select-with-filter placeholder="Select method" :options="objects[sensor.linked_object].methods" v-model="sensor.linked_method"></select-with-filter>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _('Close')}}</button>
+                    </div>
+                </div>
+            </div>
+    </div>
+</div>  
+{% endblock %}  
+  
+{% block javascripts %} 
+<!-- Vue.js и Axios -->
+<script src="{{ config.ASSETS_ROOT }}/plugins/vue/vue@2.js"></script>
+<script src="{{ config.ASSETS_ROOT }}/plugins/vue/axios.min.js"></script>
+<script src="{{ config.ASSETS_ROOT }}/js/components/select-with-filter.js"></script>
+<script src="{{ url_for('ESPHome.static', filename='js/devices.js') }}"></script>  
+{% endblock %}
