@@ -202,14 +202,20 @@ class ESPHome(BasePlugin):
 
                 if sensor:
                     old_state = sensor.state
-                    sensor.state = str(state.state)
+                    value = state.state
+                    try:
+                        if sensor.round:
+                            value = round(value, int(sensor.round))
+                    except Exception as ex:
+                        self.logger.exception(ex)
+                    sensor.state = str(value)
                     sensor.last_updated = datetime.utcnow()
 
                     if sensor.linked_object:
                         if sensor.linked_property:
-                            updateProperty(sensor.linked_object + '.' + sensor.linked_property, state.state, self.name)
+                            updateProperty(sensor.linked_object + '.' + sensor.linked_property, value, self.name)
                         if sensor.linked_method:
-                            callMethod(sensor.linked_object + '.' + sensor.linked_method, {'VALUE': state.state, 'NEW_VALUE': state.state, 'OLD_VALUE': old_state, 'TITLE': sensor.name}, self.name)
+                            callMethod(sensor.linked_object + '.' + sensor.linked_method, {'VALUE': value, 'NEW_VALUE': value, 'OLD_VALUE': old_state, 'TITLE': sensor.name}, self.name)
 
                     session.commit()
 
@@ -248,6 +254,11 @@ class ESPHome(BasePlugin):
                             discovered_at=datetime.utcnow()  
                         )  
                         session.add(sensor)  
+                    else:
+                        existing.name = entity['name']
+                        existing.entity_type = entity['type']
+                        existing.unit_of_measurement = entity.get('unit_of_measurement')
+                        existing.device_class = entity.get('device_class')
                   
                 session.commit()  
                   
@@ -313,6 +324,11 @@ class ESPHome(BasePlugin):
                     ESPHomeSensor.linked_property == prop,  
                     ESPHomeSensor.enabled == True  
                 ).all()  
+
+                if len(linked_sensors) == 0:
+                    from app.core.lib.object import removeLinkFromObject
+                    removeLinkFromObject(obj, prop, self.name)
+                    return
                 
                 for sensor in linked_sensors:  
                     device = sensor.device  
@@ -342,6 +358,8 @@ class ESPHome(BasePlugin):
                 success = client.set_switch_state(entity_key, state)
             elif sensor['entity_type'] == 'number':
                 success = client.set_number_state(entity_key, value)
+            elif sensor['entity_type'] in ['text', 'textsensor']:
+                success = client.set_text_state(entity_key, str(value))
             elif sensor['entity_type'] == 'light':
                 if isinstance(value, dict):  
                     # Complex light control  

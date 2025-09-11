@@ -268,6 +268,19 @@ class ESPHomeAPIClient:
         except Exception as e:
             self.logger.error(f"Failed to set number state: {e}")
             return False
+        
+    def set_text_state(self, key: int, state: str) -> bool:
+        """Control text entity"""
+        try:
+            if not self.is_connected():
+                return False
+
+            self.client.text_command(key, state)
+            return True
+
+        except Exception as e:
+            self.logger.error(f"Failed to set textsensor state: {e}")
+            return False
 
     def set_switch_state(self, key: int, state: bool) -> bool:
         """Control switch entity"""

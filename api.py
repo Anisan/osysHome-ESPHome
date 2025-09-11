@@ -56,6 +56,7 @@ class GetESPHomeDevices(Resource):
                             "state": sensor.state,
                             "unit": sensor.unit_of_measurement,
                             "key": sensor.entity_key,
+                            "round": sensor.round,
                             "linked_object": sensor.linked_object,
                             "linked_property": sensor.linked_property,
                             "linked_method": sensor.linked_method
@@ -133,6 +134,7 @@ class AddESPHomeDevice(Resource):
                             sensor_obj.linked_object = sensor['linked_object']
                             sensor_obj.linked_property = sensor['linked_property']
                             sensor_obj.linked_method = sensor['linked_method']
+                            sensor_obj.round = sensor['round']
                             if sensor_obj.linked_object:
                                 setLinkToObject(sensor_obj.linked_object, sensor_obj.linked_property, _instance.name)
                         

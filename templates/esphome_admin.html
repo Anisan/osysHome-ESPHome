@@ -201,6 +201,7 @@
                                     </td>
                                     <td>
                                         [[sensor.linked_object]].[[sensor.linked_property]][[sensor.linked_method]]
+                                        <span v-if="sensor.round">{[[sensor.round]]}</span>
                                     </td>
                                     <td>
                                         <a class="btn btn-sm btn-outline-success ms-2 ms-auto" @click="editSensor(sensor)" title="{{ _('Edit')}}"><i class="fas fa-pencil-alt"></i></a>
@@ -247,6 +248,10 @@
                                 {{ _('Linked method')}}
                             </label>
                             <select-with-filter placeholder="Select method" :options="objects[sensor.linked_object].methods" v-model="sensor.linked_method"></select-with-filter>
+                        </div>
+                        <div v-if="sensor.linked_object">
+                            <label class="form-label">{{ _('Round')}}</label>
+                            <input type="number" class="form-control" v-model="sensor.round">
                         </div>
                     </div>
                     <div class="modal-footer">
