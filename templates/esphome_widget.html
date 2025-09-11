@@ -32,30 +32,6 @@
                 </div>  
             </div>  
         </div>  
-          
-        {% if recent_data %}  
-        <hr class="my-3">  
-        <h6 class="mb-2">{{ _('Recent Sensor Data') }}:</h6>  
-        <div class="list-group list-group-flush">  
-            {% for sensor in recent_data %}  
-            <div class="list-group-item px-0 py-2 border-0">  
-                <div class="d-flex justify-content-between align-items-center">  
-                    <div>  
-                        <div class="fw-semibold">{{ sensor.name }}</div>  
-                        <small class="text-muted">  
-                            {{ sensor.state }} {{ sensor.unit_of_measurement or '' }}  
-                        </small>  
-                    </div>  
-                    <small class="text-muted">  
-                        {% if sensor.last_updated %}  
-                            {{ sensor.last_updated.strftime('%H:%M') }}  
-                        {% endif %}  
-                    </small>  
-                </div>  
-            </div>  
-            {% endfor %}  
-        </div>  
-        {% endif %}  
     </div>  
     <div class="card-footer">  
         <a href="/admin/ESPHome" class="btn btn-sm btn-outline-primary w-100">  

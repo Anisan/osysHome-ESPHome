@@ -105,12 +105,21 @@ class AddESPHomeDevice(Resource):
 
         try:
             with session_scope() as session:
+                if_new = False
+                if_update = False
                 if data.get("id",None):
                     device = session.query(ESPHomeDevice).where(ESPHomeDevice.id == data['id']).one_or_none()
                 else:
                     device = ESPHomeDevice()
+                    device.name = data['name']
                     session.add(device)
+                    if_new = True
 
+                if device.host != data['host'] or device.port != data['port']:
+                    if_update = True
+                if device.name != data['name']:
+                    _instance.remove_device(device.name)
+                    if_new = True
                 device.name = data['name']
                 device.host = data['host']
                 device.port = data['port']
@@ -129,6 +138,11 @@ class AddESPHomeDevice(Resource):
                         
                 session.commit()
 
+                if if_new:
+                    _instance.connect_device(device)
+                elif if_update:
+                    _instance.update_connections(device)
+
             return jsonify({'status': 'success'})
 
         except Exception as e:
@@ -141,7 +155,10 @@ class AddESPHomeDevice(Resource):
         id = request.args.get("id")
         """ Delete device """
         with session_scope() as session:
+            device = session.query(ESPHomeDevice).where(ESPHomeDevice.id == id).one_or_none()
+            name = device.name
             sql = delete(ESPHomeDevice).where(ESPHomeDevice.id == id)
             session.execute(sql)
             session.commit()
+            _instance.remove_device(name)
             return {"success": True}, 200

@@ -22,7 +22,6 @@ class ESPHome(BasePlugin):
 
         self.discovery = ESPHomeDiscovery(self.logger)
         self.api_clients = {}
-        self.devices = {}
         self.loop = None
         self._loop_thread = None
 
@@ -64,164 +63,27 @@ class ESPHome(BasePlugin):
         }
         return self.render('esphome_admin.html', content)
 
-    def add_device_manual(self, request):  
-        """Add device manually"""  
-        host = request.form.get('host')  
-        port = int(request.form.get('port', 6053))  
-        password = request.form.get('password', '')  
-        name = request.form.get('name')  
-          
-        if not host or not name:  
-            return jsonify({'status': 'error', 'message': 'Host and name are required'})  
-          
-        try:  
-            with session_scope() as session:  
-                existing = session.query(ESPHomeDevice).filter_by(host=host, port=port).first()  
-                if existing:  
-                    return jsonify({'status': 'error', 'message': 'Device already exists'})  
-                  
-                device = ESPHomeDevice(  
-                    name=name,  
-                    host=host,  
-                    port=port,  
-                    password=password,  
-                    discovered_at=datetime.utcnow()  
-                )  
-                session.add(device)
-                session.commit()  
-                  
-                # Try to connect to device
-                if self.loop:  
-                    asyncio.run_coroutine_threadsafe(self.connect_device(device), self.loop)  
-                  
-            return jsonify({'status': 'success', 'message': 'Device added successfully'})  
-              
-        except Exception as e:  
-            self.logger.error(f"Error adding device: {e}")  
-            return jsonify({'status': 'error', 'message': str(e)})  
-
-    def edit_device(self, request):  
-        """Edit existing device"""  
-        try:  
-            device_id = int(request.form.get('device_id'))  
-            name = request.form.get('name')  
-            host = request.form.get('host')  
-            port = int(request.form.get('port', 6053))  
-            password = request.form.get('password', '').strip()  
-            
-            if not name or not host:  
-                return jsonify({'status': 'error', 'message': 'Name and host are required'})  
-            
-            with session_scope() as session:  
-                device = session.query(ESPHomeDevice).get(device_id)  
-                if not device:  
-                    return jsonify({'status': 'error', 'message': 'Device not found'})  
-                
-                # Проверяем, не занят ли новый host:port другим устройством  
-                existing = session.query(ESPHomeDevice).filter(  
-                    ESPHomeDevice.host == host,  
-                    ESPHomeDevice.port == port,  
-                    ESPHomeDevice.id != device_id  
-                ).first()  
-                
-                if existing:  
-                    return jsonify({'status': 'error', 'message': 'Another device with this host:port already exists'})  
-                
-                # Обновляем данные устройства  
-                old_name = device.name  
-                device.name = name  
-                device.host = host  
-                device.port = port  
-                
-                # Обновляем пароль только если он указан  
-                if password:  
-                    device.password = password  
-                
-                session.commit()  
-                
-                # Переподключаем устройство если изменились параметры подключения  
-                if old_name in self.api_clients:  
-                    if self.loop:  
-                        asyncio.run_coroutine_threadsafe(  
-                            self._reconnect_device(old_name, device),  
-                            self.loop  
-                        )  
-                
-            return jsonify({'status': 'success', 'message': 'Device updated successfully'})  
-            
-        except Exception as e:  
-            self.logger.error(f"Error editing device: {e}")  
-            return jsonify({'status': 'error', 'message': str(e)})  
-  
-    async def _reconnect_device(self, old_name: str, device: ESPHomeDevice):  
-        """Reconnect device with new parameters"""  
-        try:  
-            # Отключаем старое соединение  
-            if old_name in self.api_clients:  
-                await self.api_clients[old_name].disconnect()  
-                del self.api_clients[old_name]  
-                if old_name in self.devices:  
-                    del self.devices[old_name]  
-            
-            # Подключаемся с новыми параметрами  
-            await self.connect_device(device)  
-            
-        except Exception as e:  
-            self.logger.error(f"Error reconnecting device: {e}")
-
-    def control_entity(self, request):  
-        """Control ESPHome entity"""  
-        device_name = request.form.get('device_name')  
-        entity_key = int(request.form.get('entity_key'))  
-        entity_type = request.form.get('entity_type')  
-        state = request.form.get('state')  
-          
-        if device_name not in self.api_clients:  
-            return jsonify({'status': 'error', 'message': 'Device not connected'})  
-          
-        client = self.api_clients[device_name]  
-          
-        async def control_async():  
-            try:  
-                if entity_type == 'switch':  
-                    success = await client.set_switch_state(entity_key, state.lower() == 'true')  
-                elif entity_type == 'light':  
-                    brightness = request.form.get('brightness')  
-                    rgb = request.form.get('rgb')  
-                    success = await client.set_light_state(  
-                        entity_key,   
-                        state.lower() == 'true',  
-                        float(brightness) if brightness else None,  
-                        tuple(map(int, rgb.split(','))) if rgb else None  
-                    )  
-                else:  
-                    return False  
-                return success  
-            except Exception as e:  
-                self.logger.error(f"Error controlling entity: {e}")  
-                return False  
-          
-        if self.loop:  
-            future = asyncio.run_coroutine_threadsafe(control_async(), self.loop)  
-            success = future.result(timeout=5)  
-              
-            if success:  
-                return jsonify({'status': 'success', 'message': 'Entity controlled successfully'})  
-            else:  
-                return jsonify({'status': 'error', 'message': 'Failed to control entity'})  
-          
-        return jsonify({'status': 'error', 'message': 'Event loop not available'})  
-      
     def cyclic_task(self):  
         """Background task for data collection"""  
         try:  
-            if self.loop:  
-                asyncio.run_coroutine_threadsafe(self._async_cyclic_task(), self.loop)  
+            self.event.wait(60.0)
+            # if self.loop:  
+            #     asyncio.run_coroutine_threadsafe(self._async_cyclic_task(), self.loop)  
               
-            self.dtUpdated = datetime.utcnow()  
+            # self.dtUpdated = datetime.utcnow()  
               
         except Exception as e:  
             self.logger.error(f"Error in cyclic task: {e}")  
+
+    def stop_cycle(self):
+        """Переопределяем остановку цикла"""
+        if self.loop:
+            for client in self.api_clients.values():
+                if client.is_connected():
+                    asyncio.run_coroutine_threadsafe(client.disconnect(),self.loop)
+            self.loop.call_soon_threadsafe(self.loop.stop)
+
+        super().stop_cycle()
 
     async def _async_cyclic_task(self):  
         """Async cyclic task"""  
@@ -250,15 +112,9 @@ class ESPHome(BasePlugin):
         with session_scope() as session:  
             total_devices = session.query(ESPHomeDevice).count()  
             connected_devices = len(self.api_clients)  
-              
-            recent_data = session.query(ESPHomeSensor).order_by(  
-                ESPHomeSensor.last_updated.desc()  
-            ).limit(5).all()  
-          
         content = {  
             'total_devices': total_devices,  
             'connected_devices': connected_devices,  
-            'recent_data': recent_data  
         }  
           
         return self.render('esphome_widget.html', content)  
@@ -269,9 +125,34 @@ class ESPHome(BasePlugin):
             devices = session.query(ESPHomeDevice).filter_by(enabled=True).all()  
               
             for device in devices:  
-                await self.connect_device(device)  
-      
-    async def connect_device(self, device):  
+                await self.async_connect_device(device)  
+
+    def connect_device(self, device):
+        if self.loop:
+            asyncio.run_coroutine_threadsafe(self.async_connect_device(device), self.loop)
+
+    def update_connections(self, device):
+        if self.loop:
+            asyncio.run_coroutine_threadsafe(self.async_update_connections(device), self.loop)
+
+    async def async_update_connections(self, device):  
+        """Update device connections"""  
+        client = self.api_clients[device.name]
+        await client.disconnect()  
+        del self.api_clients[device.name]  
+        await self.async_connect_device(device)  
+  
+    def remove_device(self, device_name):  
+        """Remove device"""  
+        try:  
+            if device_name in self.api_clients:  
+                if self.loop:  
+                    asyncio.run_coroutine_threadsafe(self.api_clients[device_name].disconnect(),self.loop)  
+                del self.api_clients[device_name]  
+        except Exception as e:  
+            self.logger.error(f"Error removing device: {e}")  
+
+    async def async_connect_device(self, device):  
         """Connect to ESPHome device"""  
         try:  
             client = ESPHomeAPIClient(  
@@ -279,13 +160,15 @@ class ESPHome(BasePlugin):
                 port=device.port,  
                 password=device.password,  
                 logger=self.logger  
-            )  
+            )
+            # Enable auto-reconnect with custom settings  
+            client.enable_auto_reconnect(max_attempts=5, delay=10.0) 
+
             dev = row2dict(device)
             client.set_state_callback(lambda state: self.on_state_change(dev, state))
               
             if await client.connect():  
                 self.api_clients[device.name] = client  
-                self.devices[device.name] = device  
                   
                 # Update device info  
                 device_info = await client.get_device_info()  
@@ -371,64 +254,6 @@ class ESPHome(BasePlugin):
         except Exception as e:  
             self.logger.error(f"Error discovering sensors for {device.name}: {e}")  
       
-    async def update_connections(self):  
-        """Update device connections"""  
-        for device_name, client in list(self.api_clients.items()):  
-            if not client.is_connected():  
-                self.logger.warning(f"Lost connection to {device_name}, attempting reconnect")  
-                device = self.devices[device_name]  
-                  
-                await client.disconnect()  
-                del self.api_clients[device_name]  
-                  
-                await self.connect_device(device)  
-  
-    def remove_device(self, request):  
-        """Remove device"""  
-        device_id = request.form.get('device_id')  
-          
-        try:  
-            with session_scope() as session:  
-                device = session.query(ESPHomeDevice).get(device_id)  
-                if device:  
-                    # Disconnect API client  
-                    if device.name in self.api_clients:  
-                        if self.loop:  
-                            asyncio.run_coroutine_threadsafe(  
-                                self.api_clients[device.name].disconnect(),   
-                                self.loop  
-                            )  
-                        del self.api_clients[device.name]  
-                        if device.name in self.devices:  
-                            del self.devices[device.name]  
-                      
-                    session.delete(device)  
-                    session.commit()  
-                      
-            return jsonify({'status': 'success', 'message': 'Device removed successfully'})  
-              
-        except Exception as e:  
-            self.logger.error(f"Error removing device: {e}")  
-            return jsonify({'status': 'error', 'message': str(e)})  
-      
-    def update_config(self, request):  
-        """Update plugin configuration"""  
-        try:  
-            auto_discovery = request.form.get('auto_discovery') == 'on'  
-            discovery_interval = int(request.form.get('discovery_interval', 300))  
-              
-            self.config['auto_discovery'] = auto_discovery  
-            self.config['discovery_interval'] = discovery_interval  
-              
-            # Save config to database or file  
-            self.save_config()  
-              
-            return jsonify({'status': 'success', 'message': 'Configuration updated successfully'})  
-              
-        except Exception as e:  
-            self.logger.error(f"Error updating config: {e}")  
-            return jsonify({'status': 'error', 'message': str(e)})  
-      
     def trigger_discovery(self):  
         """Run device discovery"""  
         try:  
@@ -462,7 +287,7 @@ class ESPHome(BasePlugin):
                     self.logger.info(f"Discovered new ESPHome device: {device_info['name']}")  
                       
                     # Try to connect  
-                    # await self.connect_device(device)  
+                    self.connect_device(device)  
                   
         except Exception as e:  
             self.logger.error(f"Error adding discovered device: {e}")
@@ -550,7 +375,6 @@ class ESPHome(BasePlugin):
         except Exception as e:  
             self.logger.error(f"Error controlling linked sensor {sensor['name']}: {e}")
            
-  
     def _convert_to_boolean(self, value):  
         """Convert various value types to boolean"""  
         if isinstance(value, bool):  
