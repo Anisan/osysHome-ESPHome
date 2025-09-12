@@ -58,7 +58,7 @@
                                                 <i class="fas fa-wifi me-1"></i>{{ _('Connected') }}  
                                             </span>  
                                             <span v-else class="badge bg-danger">  
-                                                <i class="fas fa-wifi-slash me-1"></i>{{ _('Disconnected') }}  
+                                                <i class="fas fa-wifi me-1"></i>{{ _('Disconnected') }}  
                                             </span>  
                                     </td>  
                                     <td>  
@@ -183,7 +183,7 @@
                     <div class="table-responsive">  
                         <table class="table table-hover" id="devicesTable">  
                             <thead>  
-                                <tr>  
+                                <tr> 
                                     <th>{{ _('Name') }}</th>  
                                     <th>{{ _('State') }}</th>  
                                     <th>{{ _('Link') }}</th>  
@@ -193,15 +193,23 @@
                             <tbody>  
                                 <tr v-for="sensor in device.sensors" data-device-id="[[ sensor.id ]]">  
                                     <td> 
-                                        <strong>[[sensor.name]]</strong><br>
-                                        [[sensor.type]] - [[sensor.class]] - [[sensor.unit]]
+                                        <div class="d-flex align-items-center gap-2">
+                                            <iconify-icon :icon="sensor.icon" style="font-size: 32px;"></iconify-icon>
+                                            <div>
+                                                <strong>[[sensor.name]]</strong><br>
+                                                <span class="badge bg-success">[[sensor.type]] </span>
+                                                <span class="badge bg-success">[[sensor.class]]</span>
+                                                <span class="badge bg-danger" v-if="sensor.accuracy_decimals">Accuracy: [[sensor.accuracy_decimals]]</span>
+                                            </div>
+                                        </div>
                                     </td>
                                     <td> 
-                                        [[sensor.state]]
+                                        [[sensor.state]] [[sensor.unit]]
                                     </td>
                                     <td>
+                                        <span v-if="sensor.linked_object" class="badge bg-secondary">
                                         [[sensor.linked_object]].[[sensor.linked_property]][[sensor.linked_method]]
-                                        <span v-if="sensor.round">{[[sensor.round]]}</span>
+                                        </span>
                                     </td>
                                     <td>
                                         <a class="btn btn-sm btn-outline-success ms-2 ms-auto" @click="editSensor(sensor)" title="{{ _('Edit')}}"><i class="fas fa-pencil-alt"></i></a>
@@ -249,10 +257,6 @@
                             </label>
                             <select-with-filter placeholder="Select method" :options="objects[sensor.linked_object].methods" v-model="sensor.linked_method"></select-with-filter>
                         </div>
-                        <div v-if="sensor.linked_object">
-                            <label class="form-label">{{ _('Round')}}</label>
-                            <input type="number" class="form-control" v-model="sensor.round">
-                        </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _('Close')}}</button>
@@ -265,6 +269,7 @@
   
 {% block javascripts %} 
 <!-- Vue.js и Axios -->
+ <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
 <script src="{{ config.ASSETS_ROOT }}/plugins/vue/vue@2.js"></script>
 <script src="{{ config.ASSETS_ROOT }}/plugins/vue/axios.min.js"></script>
 <script src="{{ config.ASSETS_ROOT }}/js/components/select-with-filter.js"></script>

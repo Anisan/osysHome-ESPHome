@@ -1,5 +1,3 @@
-import json
-import datetime
 from flask import request, jsonify
 from flask_restx import Namespace, Resource
 from sqlalchemy import delete
@@ -7,7 +5,7 @@ from app.api.decorators import api_key_required
 from app.authentication.handlers import handle_admin_required
 from app.api.models import model_404, model_result
 from plugins.ESPHome.models import ESPHomeDevice, ESPHomeSensor
-from app.database import row2dict, session_scope
+from app.database import session_scope
 from plugins.ESPHome import ESPHome
 from app.core.lib.object import setLinkToObject, removeLinkFromObject
 
@@ -35,14 +33,16 @@ class GetESPHomeDevices(Resource):
         with session_scope() as session:
             devices = session.query(ESPHomeDevice).all()
             result = []
-
             for device in devices:
+                connected = False
+                if device.name in _instance.api_clients:
+                    connected = _instance.api_clients[device.name].is_connected()
                 device_data = {
                     "id": device.id,
                     "name": device.name,
                     "host": device.host,
                     "port": device.port,
-                    "connected": device.name in _instance.api_clients,
+                    "connected": connected,
                     "last_seen": (
                         device.last_seen.isoformat() if device.last_seen else None
                     ),
@@ -55,8 +55,9 @@ class GetESPHomeDevices(Resource):
                             "class": sensor.device_class,
                             "state": sensor.state,
                             "unit": sensor.unit_of_measurement,
+                            "icon": sensor.icon,
                             "key": sensor.entity_key,
-                            "round": sensor.round,
+                            "accuracy_decimals": sensor.accuracy_decimals,
                             "linked_object": sensor.linked_object,
                             "linked_property": sensor.linked_property,
                             "linked_method": sensor.linked_method
@@ -113,7 +114,10 @@ class AddESPHomeDevice(Resource):
                 else:
                     device = ESPHomeDevice()
                     device.name = data['name']
+                    device.host = data['host']
+                    device.port = data['port']
                     session.add(device)
+                    session.commit()
                     if_new = True
 
                 if device.host != data['host'] or device.port != data['port']:
@@ -134,10 +138,9 @@ class AddESPHomeDevice(Resource):
                             sensor_obj.linked_object = sensor['linked_object']
                             sensor_obj.linked_property = sensor['linked_property']
                             sensor_obj.linked_method = sensor['linked_method']
-                            sensor_obj.round = sensor['round']
                             if sensor_obj.linked_object:
                                 setLinkToObject(sensor_obj.linked_object, sensor_obj.linked_property, _instance.name)
-                        
+
                 session.commit()
 
                 if if_new:
@@ -148,7 +151,7 @@ class AddESPHomeDevice(Resource):
             return jsonify({'status': 'success'})
 
         except Exception as e:
-            _instance.logger.error(f"Error adding device: {e}")
+            _instance.logger.exception(f"Error adding device: {e}")
             return jsonify({'status': 'error', 'message': str(e)})
 
     @api_key_required

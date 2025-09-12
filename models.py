@@ -31,8 +31,9 @@ class ESPHomeSensor(SurrogatePK, db.Model):
     entity_type = Column(String(50))  # sensor, binary_sensor, switch, light
     device_class = Column(String(50))
     unit_of_measurement = Column(String(20))
+    icon = Column(String(50))
     state = Column(Text)
-    round = Column(Integer)
+    accuracy_decimals = Column(Integer)
     linked_object = Column(String(255))
     linked_property = Column(String(255))
     linked_method = Column(String(255))
