@@ -221,12 +221,11 @@ class ESPHome(BasePlugin):
                     session.commit()
 
                     # Send real-time update via WebSocket
-                    self.sendDataToWebsocket('esphome_sensor_update', {
+                    self.sendDataToWebsocket('sensor_update', {
                         'device': device['name'],
                         'sensor': sensor.name,
-                        'state': str(state.state),
+                        'state': str(sensor.state),
                         'key': state.key,
-                        'entity_type': sensor.entity_type
                     })
 
         except Exception as e:

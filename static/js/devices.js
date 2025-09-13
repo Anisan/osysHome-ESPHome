@@ -20,6 +20,7 @@ new Vue({
         this.device = {...this.default_device}
         this.fetchObjects()
         await this.fetchDevices()
+        this.connectSocket(); 
     },
     mounted() {
 
@@ -36,6 +37,44 @@ new Vue({
         }
     },
     methods: {
+        connectSocket() {
+            this.socket = io(); // Подключаемся к серверу
+            this.socket.emit('subscribeData',["ESPHome"]);
+            this.socket.on('ESPHome', (data) => {
+            if (data.operation == "sensor_update"){
+                const updatedData = data.data
+                console.log('Received updated sensor:', updatedData);
+                // Обновляем данные в дереве
+                const deviceName = updatedData['device']
+                const sensorName = updatedData['sensor']
+                const key = updatedData['key']
+                const newState = updatedData['state']
+                  // Находим устройство по имени
+                const deviceIndex = this.devices.findIndex(d => d.name === deviceName);
+                if (deviceIndex === -1) {
+                    console.error(`Устройство "${deviceName}" не найдено`);
+                    return false;
+                }
+                
+                const device = this.devices[deviceIndex];
+                
+                // Находим сенсор
+                const sensorIndex = device.sensors.findIndex(s => 
+                    s.name === sensorName
+                );
+                
+                if (sensorIndex === -1) {
+                    console.error(`Сенсор "${sensorName}" не найден в устройстве "${deviceName}"`);
+                    return false;
+                }
+                
+                // Обновляем состояние
+                device.sensors[sensorIndex].state = newState;
+
+            }
+
+            });
+        },
         fetchObjects(){
                 axios.get(`/api/object/list/details`)
                     .then(response => {

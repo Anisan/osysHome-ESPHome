@@ -37,7 +37,7 @@ class ESPHomeAPIClient:
             return True
 
         except Exception as e:
-            self.logger.error(f"Unexpected error connecting to {self.host}:{self.port}: {e}")
+            self.logger.error(f"Unexpected error connecting to '{self.name}' - {self.host}:{self.port}: {e}")
             return False
 
     async def disconnect(self):
@@ -62,7 +62,7 @@ class ESPHomeAPIClient:
 
         # Get device info
         self.device_info = await self.get_device_info()
-        self.logger.info(f"Connected to {self.device_info.name} - {self.host}:{self.port}")
+        self.logger.info(f"Connected to '{self.name}' - {self.host}:{self.port}")
 
         # List entities
         self.entities = await self.list_entities()
@@ -74,21 +74,21 @@ class ESPHomeAPIClient:
         if self.state_callback:
             try:
                 self.client.subscribe_states(self.state_callback)
-                self.logger.debug(f"Subscribed to states for {self.host}:{self.port}")
+                self.logger.debug(f"Subscribed to states for '{self.name}' - {self.host}:{self.port}")
             except Exception as e:
                 self.logger.error(f"Failed to re-subscribe to states: {e}")
 
     async def _on_connect_error(self,err: Exception) -> None:
-        self.logger.error(f"Failed connect to {self.host}:{self.port}: {err}")
+        self.logger.error(f"Failed connect to '{self.name}' - {self.host}:{self.port}: {err}")
 
     async def _on_disconnect(self, expected_disconnect: bool):
         """Called when connection is lost"""
         self.connected = False
-        self.logger.warning(f"Disconnected from ESPHome device at {self.host}:{self.port} (expected_disconnect:{expected_disconnect})")
+        self.logger.warning(f"Disconnected from '{self.name}' -  at {self.host}:{self.port} (expected_disconnect:{expected_disconnect})")
 
     async def force_reconnect(self):
         """Force immediate reconnection"""
-        self.logger.info(f"Forcing reconnection to {self.host}:{self.port}")
+        self.logger.info(f"Forcing reconnection to '{self.name}' - {self.host}:{self.port}")
 
         # Disconnect first
         await self.disconnect()
