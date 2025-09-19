@@ -3,6 +3,7 @@ new Vue({
     delimiters: ['[[', ']]'], // Измененные разделители
     data: {
         objects:[],
+        links: undefined,
         sensor: undefined,
         devices: {},
         default_device:{
@@ -48,7 +49,7 @@ new Vue({
                 const deviceName = updatedData['device']
                 const sensorName = updatedData['sensor']
                 const key = updatedData['key']
-                const newState = updatedData['state']
+                const newStates = updatedData['state']
                   // Находим устройство по имени
                 const deviceIndex = this.devices.findIndex(d => d.name === deviceName);
                 if (deviceIndex === -1) {
@@ -69,7 +70,7 @@ new Vue({
                 }
                 
                 // Обновляем состояние
-                device.sensors[sensorIndex].state = newState;
+                device.sensors[sensorIndex].state = newStates;
 
             }
 
@@ -109,13 +110,15 @@ new Vue({
             }
         },
         async removeDevice(device){
-            try {
-              const response = await axios.delete('/api/ESPHome/device?id='+device.id);
-                console.log("Device removed successfully:", response.data);
-            } catch (error) {
-              console.error("Error delete device:", error);
+            if (confirm('Are you sure you want to delete this device?')) {
+                try {
+                const response = await axios.delete('/api/ESPHome/device?id='+device.id);
+                    console.log("Device removed successfully:", response.data);
+                } catch (error) {
+                console.error("Error delete device:", error);
+                }
+                this.fetchDevices()
             }
-            this.fetchDevices()
         },
         editSensors(device){
             try {
@@ -128,6 +131,7 @@ new Vue({
         },
         async saveDevice(){
             try {
+                console.log(this.device)
               const response = await axios.post('/api/ESPHome/device', this.device);
               
             } catch (error) {
@@ -138,10 +142,45 @@ new Vue({
             this.fetchDevices()
         },
         editSensor(sensor){
-            this.sensor=sensor
+            var states = {...sensor.state}
+            for (let key of Object.keys(states)) {
+                states[key] = ''
+            }
+            states = { ...states, ...sensor.links };
+            var links = []
+            for (let key of Object.keys(states)) {
+                var op = states[key].split('.')
+                if (op.length == 2){
+                    links.push({
+                        'name': key,
+                        'object': op[0],
+                        'property': op[1]
+                    })
+                }
+                else
+                    links.push({
+                        'object': '',
+                        'name': key,
+                        'property': ''
+                    })
+            }           
+            console.log(links)
+            this.links = links
+            this.sensor = sensor
             $('#sensorModal').modal('show');
+        },
+        saveLinks(){
+            console.log(this.sensor, this.links)
+            for (let link of this.links){
+                if (link.object != ''){
+                    var op = link.object + '.' + link.property
+                    this.$set(this.sensor.links, link.name, op);
+                }
+                else
+                    this.$set(this.sensor.links, link.name, '');
+            }
+            $('#sensorModal').modal('hide');
+            console.log(this.sensor)
         }
-
-
     }
   });

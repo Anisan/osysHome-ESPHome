@@ -1,5 +1,6 @@
 import asyncio
 import threading
+import json
 from datetime import datetime
 from flask import redirect
 from app.core.main.BasePlugin import BasePlugin
@@ -7,7 +8,7 @@ from app.database import session_scope, row2dict
 from plugins.ESPHome.models import ESPHomeDevice, ESPHomeSensor
 from plugins.ESPHome.discovery import ESPHomeDiscovery
 from plugins.ESPHome.api_client import ESPHomeAPIClient
-from app.core.lib.object import callMethod, updateProperty
+from app.core.lib.object import getProperty, updateProperty
 from app.api import api
 
 class ESPHome(BasePlugin):
@@ -191,9 +192,29 @@ class ESPHome(BasePlugin):
             # Discover sensors
             self.discover_device_sensors(db_device, client)
 
+    def _getStates(self, state):
+        from aioesphomeapi import SensorState, LightState, ColorMode
+        result = {}
+        if isinstance(state, SensorState):
+            result['state'] = state.state
+        elif isinstance(state, LightState):
+            result['state'] = state.state
+            if state.color_mode in [ColorMode.BRIGHTNESS, ColorMode.LEGACY_BRIGHTNESS, ColorMode.RGB]:
+                result['brightness'] = state.brightness * 100
+            if state.color_mode == ColorMode.RGB:
+                from plugins.ESPHome.utils import rgb_float_to_hex
+                result['rgb'] = rgb_float_to_hex(state.red, state.green, state.blue)
+        else:
+            result = state.to_dict()
+            del result['key']
+            del result['device_id']
+            if 'missing_state' in result:
+                del result['missing_state']
+        return result
+
     def on_state_change(self, device, state):
         """Handle state changes from ESPHome device"""
-        self.logger.debug(f"State {device['name']} changed: {state}")
+        self.logger.debug(f"State {device['name']} changed: {state.to_dict()}")
         try:
             with session_scope() as session:
                 sensor = session.query(ESPHomeSensor).filter_by(
@@ -202,21 +223,34 @@ class ESPHome(BasePlugin):
                 ).first()
 
                 if sensor:
-                    old_state = sensor.state
-                    value = state.state
-                    try:
-                        if sensor.accuracy_decimals:
-                            value = round(value, int(sensor.accuracy_decimals))
-                    except Exception as ex:
-                        self.logger.exception(ex)
-                    sensor.state = str(value)
+
+                    values = self._getStates(state)
+
+                    for key, value in values.items():
+                        try:
+                            if sensor.accuracy_decimals:
+                                values[key] = round(value, int(sensor.accuracy_decimals))
+                        except Exception as ex:
+                            self.logger.exception(ex)
+
+                    str_values = json.dumps(values)
+                    #old_state = sensor.state
+                    
+                    #if old_state == str_values:
+                    #    return
+                    
+                    sensor.state = str_values
                     sensor.last_updated = datetime.utcnow()
 
-                    if sensor.linked_object:
-                        if sensor.linked_property:
-                            updateProperty(sensor.linked_object + '.' + sensor.linked_property, value, self.name)
-                        if sensor.linked_method:
-                            callMethod(sensor.linked_object + '.' + sensor.linked_method, {'VALUE': value, 'NEW_VALUE': value, 'OLD_VALUE': old_state, 'TITLE': sensor.name}, self.name)
+                    links = {} 
+                    if sensor.links:
+                        links = json.loads(sensor.links)
+
+                    for key, value in values.items():
+                        if key in links:
+                            link = links[key]
+                            if link:
+                                updateProperty(link, value, self.name)
 
                     session.commit()
 
@@ -224,7 +258,7 @@ class ESPHome(BasePlugin):
                     self.sendDataToWebsocket('sensor_update', {
                         'device': device['name'],
                         'sensor': sensor.name,
-                        'state': str(sensor.state),
+                        'state': values,
                         'key': state.key,
                     })
 
@@ -240,13 +274,14 @@ class ESPHome(BasePlugin):
                 for entity in entities:
                     existing = session.query(ESPHomeSensor).where(
                         ESPHomeSensor.device_id == device.id,
-                        ESPHomeSensor.entity_key == str(entity['key'])
+                        ESPHomeSensor.unique_id == entity['unique_id']
                     ).one_or_none()
 
                     if not existing:
                         sensor = ESPHomeSensor(
                             device_id=device.id,
                             entity_key=str(entity['key']),
+                            unique_id=entity['unique_id'],
                             name=entity['name'],
                             entity_type=entity['type'],
                             unit_of_measurement=entity.get('unit_of_measurement'),
@@ -258,6 +293,7 @@ class ESPHome(BasePlugin):
                         session.add(sensor)
                     else:
                         existing.name = entity['name']
+                        existing.entity_key = str(entity['key'])
                         existing.entity_type = entity['type']
                         existing.unit_of_measurement = entity.get('unit_of_measurement')
                         existing.device_class = entity.get('device_class')
@@ -326,11 +362,15 @@ class ESPHome(BasePlugin):
 
             # Find sensors linked to this object.property
             with session_scope() as session:
+                obj_str = str(obj) if obj is not None else ""
+                prop_str = str(prop) if prop is not None else ""
+                pattern = f"{obj_str}.{prop_str}"
+                # Escape SQL wildcards if needed
+                escaped_pattern = f"%{pattern.replace('%', '\\%').replace('_', '\\_')}%"
                 linked_sensors = (
                     session.query(ESPHomeSensor)
                     .filter(
-                        ESPHomeSensor.linked_object == obj,
-                        ESPHomeSensor.linked_property == prop,
+                        ESPHomeSensor.links.like(escaped_pattern, escape='\\'),
                         ESPHomeSensor.enabled == True, # noqa
                     )
                     .all()
@@ -344,18 +384,24 @@ class ESPHome(BasePlugin):
 
                 for sensor in linked_sensors:
                     device = sensor.device
+                    self.logger.debug(device)
                     if device.name in self.api_clients:
                         # Control the ESPHome entity based on sensor type
                         _sensor = row2dict(sensor)
-                        _sensor["device"] = row2dict(sensor.device)
-                        self._control_linked_sensor(_sensor, val)
+                        _sensor["device"] = device.name
+                        links = json.loads(sensor.links)
+                        state = 'state'
+                        for key, link in links.items():
+                            if link == obj + "." + prop:
+                                state = key
+                        self._control_linked_sensor(_sensor, state, val)
         except Exception as e:
             self.logger.error(f"Error in changeLinkedProperty: {e}")
 
-    def _control_linked_sensor(self, sensor, value):
+    def _control_linked_sensor(self, sensor, state, value):
         """Control ESPHome sensor based on linked property change"""
         try:
-            device_name = sensor["device"]["name"]
+            device_name = sensor["device"]
             client = self.api_clients[device_name]
 
             if not client.is_connected():
@@ -373,11 +419,20 @@ class ESPHome(BasePlugin):
             elif sensor['entity_type'] in ['text', 'textsensor']:
                 success = client.set_text_state(entity_key, str(value))
             elif sensor['entity_type'] == 'light':
-                if isinstance(value, dict):
+                if state != 'state':
+                    links = json.loads(sensor['links'])
                     # Complex light control
-                    state = value.get("state", True)
-                    brightness = value.get("brightness")
-                    rgb = value.get("rgb")
+                    state = None
+                    brightness = None
+                    rgb = None
+                    if 'state' in links:
+                        state = self._convert_to_boolean(getProperty(links['state']))
+                    if 'state' in links:
+                        brightness = getProperty(links['brightness']) / 100
+                    if 'rgb' in links:
+                        hex_rgb = getProperty(links['rgb'])
+                        from plugins.ESPHome.utils import hex_to_rgb_float
+                        rgb = hex_to_rgb_float(hex_rgb)
                     success = client.set_light_state(entity_key, state, brightness, rgb)
                 else:
                     # Simple on/off control
@@ -401,15 +456,15 @@ class ESPHome(BasePlugin):
 
             if success:
                 self.logger.info(
-                    f"Successfully controlled {device_name} sensor {sensor['name']}: {value}"
+                    f"Successfully controlled {device_name} sensor {sensor['name']}({state}): {value}"
                 )
             else:
                 self.logger.error(
-                    f"Failed to control {device_name} sensor {sensor['name']}: {value}"
+                    f"Failed to control {device_name} sensor {sensor['name']}({state}): {value}"
                 )
 
         except Exception as e:
-            self.logger.error(f"Error controlling linked sensor {sensor['name']}: {e}")
+            self.logger.error(f"Error controlling linked sensor {sensor['name']}({state}): {e}")
 
     def _convert_to_boolean(self, value):
         """Convert various value types to boolean"""

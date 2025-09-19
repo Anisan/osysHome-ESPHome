@@ -1,3 +1,4 @@
+import json
 from flask import request, jsonify
 from flask_restx import Namespace, Resource
 from sqlalchemy import delete
@@ -37,6 +38,23 @@ class GetESPHomeDevices(Resource):
                 connected = False
                 if device.name in _instance.api_clients:
                     connected = _instance.api_clients[device.name].is_connected()
+                sensors_list = [
+                    {
+                        "id": sensor.id,
+                        "name": sensor.name,
+                        "type": sensor.entity_type,
+                        "class": sensor.device_class,
+                        "state": json.loads(sensor.state) if sensor.state else {},
+                        "unit": sensor.unit_of_measurement,
+                        "icon": sensor.icon,
+                        "key": sensor.entity_key,
+                        "accuracy_decimals": sensor.accuracy_decimals,
+                        "links": json.loads(sensor.links) if sensor.links else {},
+                    }
+                    for sensor in device.sensors
+                ]
+                sensors_list.sort(key=lambda s: s['name'].lower())
+
                 device_data = {
                     "id": device.id,
                     "name": device.name,
@@ -47,26 +65,10 @@ class GetESPHomeDevices(Resource):
                         device.last_seen.isoformat() if device.last_seen else None
                     ),
                     "firmware_version": device.firmware_version,
-                    "sensors": [
-                        {
-                            "id": sensor.id,
-                            "name": sensor.name,
-                            "type": sensor.entity_type,
-                            "class": sensor.device_class,
-                            "state": sensor.state,
-                            "unit": sensor.unit_of_measurement,
-                            "icon": sensor.icon,
-                            "key": sensor.entity_key,
-                            "accuracy_decimals": sensor.accuracy_decimals,
-                            "linked_object": sensor.linked_object,
-                            "linked_property": sensor.linked_property,
-                            "linked_method": sensor.linked_method
-                        }
-                        for sensor in device.sensors
-                    ],
+                    "sensors": sensors_list,
                 }
                 result.append(device_data)
-
+            result.sort(key=lambda x: x['name'].lower()) 
             return jsonify(result)
 
 @_api_ns.route("/device/<int:device_id>/sensors", endpoint="esphome_sensors")
@@ -85,7 +87,7 @@ class GetESPHomeSensors(Resource):
 
                 content = {
                     'device': device,
-                    'sensors': device.sensors
+                    'sensors': device.sensors,
                 }
 
                 return _instance.render('sensor_editor.html', content)
@@ -133,14 +135,18 @@ class AddESPHomeDevice(Resource):
                     for sensor in data['sensors']:
                         sensor_obj = session.query(ESPHomeSensor).where(ESPHomeSensor.id == sensor['id']).one_or_none()
                         if sensor_obj:
-                            if sensor_obj.linked_object:
-                                removeLinkFromObject(sensor_obj.linked_object, sensor_obj.linked_property, _instance.name)
-                            sensor_obj.linked_object = sensor['linked_object']
-                            sensor_obj.linked_property = sensor['linked_property']
-                            sensor_obj.linked_method = sensor['linked_method']
-                            if sensor_obj.linked_object:
-                                setLinkToObject(sensor_obj.linked_object, sensor_obj.linked_property, _instance.name)
-
+                            if sensor_obj.links:
+                                links = json.loads(sensor_obj.links)
+                                for _, link in links.items():
+                                    if link:
+                                        op = link.split('.')
+                                        removeLinkFromObject(op[0], op[1], _instance.name)
+                            links = sensor['links']
+                            sensor_obj.links = json.dumps(links)
+                            for _, link in links.items():
+                                if link:
+                                    op = link.split('.')
+                                    setLinkToObject(op[0], op[1], _instance.name)
                 session.commit()
 
                 if if_new:
@@ -162,6 +168,8 @@ class AddESPHomeDevice(Resource):
         with session_scope() as session:
             device = session.query(ESPHomeDevice).where(ESPHomeDevice.id == id).one_or_none()
             name = device.name
+            sql = delete(ESPHomeSensor).where(ESPHomeSensor.device_id == id)
+            session.execute(sql)
             sql = delete(ESPHomeDevice).where(ESPHomeDevice.id == id)
             session.execute(sql)
             session.commit()

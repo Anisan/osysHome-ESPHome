@@ -1,5 +1,5 @@
 from typing import List, Optional, Callable
-from aioesphomeapi import APIClient, ReconnectLogic
+from aioesphomeapi import APIClient, ReconnectLogic, ColorMode
 from app.logging_config import getLogger
 
 class ESPHomeAPIClient:
@@ -120,7 +120,9 @@ class ESPHomeAPIClient:
             if not self.is_connected():
                 return []
 
-            entities, _ = await self.client.list_entities_services()
+            entities, services = await self.client.list_entities_services()
+            self.logger.debug(entities)
+            self.logger.debug(services)
             result = []
 
             for entity in entities:
@@ -140,6 +142,11 @@ class ESPHomeAPIClient:
                     entity_dict['icon'] = entity.icon
                 if hasattr(entity, 'accuracy_decimals'):
                     entity_dict['accuracy_decimals'] = entity.accuracy_decimals
+                if hasattr(entity, 'supported_color_modes'):
+                    modes = []
+                    for mode in entity.supported_color_modes:
+                        modes.append(mode.name)
+                    entity_dict['device_class'] = ','.join(modes)
 
                 result.append(entity_dict)
 
@@ -208,7 +215,7 @@ class ESPHomeAPIClient:
             self.logger.error(f"Failed to set switch state: {e}")
             return False
 
-    async def set_light_state(
+    def set_light_state(
         self, key: int, state: bool, brightness: float = None, rgb: tuple = None
     ) -> bool:
         """Control light entity"""

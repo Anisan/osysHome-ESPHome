@@ -27,6 +27,7 @@ class ESPHomeSensor(SurrogatePK, db.Model):
 
     device_id = Column(Integer, ForeignKey("esphome_devices.id"), nullable=False)
     entity_key = Column(String(255), nullable=False)
+    unique_id = Column(String(255), nullable=False)
     name = Column(String(255), nullable=False)
     entity_type = Column(String(50))  # sensor, binary_sensor, switch, light
     device_class = Column(String(50))
@@ -34,9 +35,7 @@ class ESPHomeSensor(SurrogatePK, db.Model):
     icon = Column(String(50))
     state = Column(Text)
     accuracy_decimals = Column(Integer)
-    linked_object = Column(String(255))
-    linked_property = Column(String(255))
-    linked_method = Column(String(255))
+    links = Column(Text)
     last_updated = Column(DateTime)
     discovered_at = Column(DateTime)
     enabled = Column(Boolean, default=True)

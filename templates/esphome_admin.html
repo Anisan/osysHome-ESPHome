@@ -3,9 +3,9 @@
 <li class="breadcrumb-item"><a href="ESPHome">ESPHome </a></li>
 {% endblock %}
 {% block module %}
-<div class="container-fluid" id="esphome_devices">  
+<div class="container-fluid p-0" id="esphome_devices">  
     <!-- Page Header -->  
-    <div class="row align-items-center mb-1">  
+    <div class="row align-items-center ms-2 mb-1">  
         <div class="col-auto">
             <img src="/ESPHome/static/ESPHome.png" alt="Logo" class="img-fluid" style="max-width: 50px;">
         </div>
@@ -74,13 +74,13 @@
                                     </td>  
                                     <td>  
                                         <div class="btn-group" role="group">  
-                                            <button class="btn btn-sm btn-outline-primary" @click="editSensors(device)" title="{{ _('Edit Sensors') }}">  
+                                            <button class="btn btn-sm btn-primary" @click="editSensors(device)" title="{{ _('Edit Sensors') }}">  
                                                 <i class="fas fa-cogs"></i>  
                                             </button>  
-                                            <button class="btn btn-sm btn-outline-warning" @click="editDevice(device)" title="{{ _('Edit') }}">  
+                                            <button class="btn btn-sm btn-warning" @click="editDevice(device)" title="{{ _('Edit') }}">  
                                                 <i class="fas fa-edit"></i>  
                                             </button>  
-                                            <button class="btn btn-sm btn-outline-danger" @click="removeDevice(device)" title="{{ _('Delete') }}">  
+                                            <button class="btn btn-sm btn-danger" @click="removeDevice(device)" title="{{ _('Delete') }}">  
                                                 <i class="fas fa-trash"></i>  
                                             </button>  
                                         </div>  
@@ -132,7 +132,7 @@
   
     <!-- Add Device Modal -->  
     <div class="modal fade" id="deviceModal" tabindex="-1" aria-labelledby="deviceModalLabel" aria-hidden="true">  
-        <div class="modal-dialog">  
+        <div class="modal-dialog modal-dialog-centered">  
             <div class="modal-content">  
                 <div class="modal-header">  
                     <h5 class="modal-title" id="deviceModalLabel">{{ _('ESPHome Device') }}</h5>  
@@ -173,7 +173,7 @@
         </div>  
     </div>
     <div class="modal fade" id="sensorsModal" tabindex="-1" aria-labelledby="deviceModalLabel" aria-hidden="true">  
-        <div class="modal-dialog  modal-dialog-scrollable modal-xl">  
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl">  
             <div class="modal-content">  
                 <div class="modal-header">  
                     <h5 class="modal-title" id="deviceModalLabel">[[device.name]]</h5>  
@@ -185,7 +185,7 @@
                             <thead>  
                                 <tr> 
                                     <th>{{ _('Name') }}</th>  
-                                    <th>{{ _('State') }}</th>  
+                                    <th>{{ _('Values') }}</th>  
                                     <th>{{ _('Link') }}</th>  
                                     <th>{{ _('Actions') }}</th>  
                                 </tr>  
@@ -204,18 +204,20 @@
                                         </div>
                                     </td>
                                     <td> 
-                                        [[sensor.state]] [[sensor.unit]]
+                                        <div v-for="key in Object.keys(sensor.state)" :key="key">
+                                            <small class="text-muted">[[ key ]]:</small> [[ sensor.state[key] ]]<span v-if="sensor.unit"> [[sensor.unit]]</span>
+                                        </div>
                                     </td>
                                     <td>
-                                        <span v-if="sensor.linked_object" class="badge bg-secondary">
-                                        [[sensor.linked_object]].[[sensor.linked_property]][[sensor.linked_method]]
-                                        </span>
+                                        <div v-if="sensor.links" v-for="key in Object.keys(sensor.links)" :key="key">
+                                            <small class="text-muted">[[ key ]]:</small> <span v-if="sensor.links[key]" class="badge bg-secondary">[[ sensor.links[key] ]]</span>
+                                        </div>
                                     </td>
                                     <td>
-                                        <a class="btn btn-sm btn-outline-success ms-2 ms-auto" @click="editSensor(sensor)" title="{{ _('Edit')}}"><i class="fas fa-pencil-alt"></i></a>
-                                        <button class="btn btn-sm btn-outline-danger" @click="deleteSensor(sensor)" title="{{ _('Delete') }}">  
+                                        <a class="btn btn-sm btn-success ms-2 ms-auto" @click="editSensor(sensor)" title="{{ _('Edit')}}"><i class="fas fa-pencil-alt"></i></a>
+                                        <!--button class="btn btn-sm btn-outline-danger" @click="deleteSensor(sensor)" title="{{ _('Delete') }}">  
                                             <i class="fas fa-trash"></i>  
-                                        </button>
+                                        </button-->
                                     </td>
                                 </tr>
                             </tbody>
@@ -238,28 +240,26 @@
                         <h5 class="modal-title" id="exampleModalLabel">{{ _('Settings link')}}</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
-                    <div v-if="sensor" class="modal-body">
-                        <div>
-                            <label class="form-check-label" for="flexCheckDefault">
-                                {{ _('Linked object')}}
-                            </label>
-                            <select-with-filter placeholder="{{ _('Select object')}}" :options="objectOptions" v-model="sensor.linked_object" @changed="sensor.linked_property = null"></select-with-filter>
-                        </div>
-                        <div v-if="sensor.linked_object && sensor.linked_object in objects">
-                            <label class="form-check-label" for="flexCheckDefault">
-                                {{ _('Linked property')}}
-                            </label>
-                            <select-with-filter placeholder="{{ _('Select property')}}" :options="objects[sensor.linked_object].properties" v-model="sensor.linked_property"></select-with-filter>
-                        </div>
-                        <div v-if="sensor.linked_object && sensor.linked_object in objects">
-                            <label class="form-check-label" for="flexCheckDefault">
-                                {{ _('Linked method')}}
-                            </label>
-                            <select-with-filter placeholder="Select method" :options="objects[sensor.linked_object].methods" v-model="sensor.linked_method"></select-with-filter>
+                    <div v-if="links" class="modal-body p-0">
+                        <div class="list-group list-group-flush">
+                            <div class="list-group-item list-group-item-action" v-for="sensor in links">
+                                <strong>[[ sensor.name ]]</strong>
+                                <div class="d-flex align-items-start">
+                                    <div>
+                                        <select-with-filter placeholder="{{ _('Select object')}}" :options="objectOptions" v-model="sensor.object" @changed="sensor.property = null"></select-with-filter>
+                                    </div>
+                                    <div v-if="sensor.object && sensor.object in objects">
+                                        <select-with-filter placeholder="{{ _('Select property')}}" :options="objects[sensor.object].properties" v-model="sensor.property"></select-with-filter>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _('Close')}}</button>
+                        <button type="button" class="btn btn-primary" id="addDeviceBtn" @click="saveLinks()">  
+                            <i class="fas fa-save me-1"></i>{{ _('Save') }}  
+                        </button>  
                     </div>
                 </div>
             </div>
