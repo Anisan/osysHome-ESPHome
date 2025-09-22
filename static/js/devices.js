@@ -50,7 +50,7 @@ new Vue({
                 const sensorName = updatedData['sensor']
                 const key = updatedData['key']
                 const newStates = updatedData['state']
-                  // Находим устройство по имени
+                // Находим устройство по имени
                 const deviceIndex = this.devices.findIndex(d => d.name === deviceName);
                 if (deviceIndex === -1) {
                     console.error(`Устройство "${deviceName}" не найдено`);
@@ -72,6 +72,23 @@ new Vue({
                 // Обновляем состояние
                 device.sensors[sensorIndex].state = newStates;
 
+            }
+            if (data.operation == "device_update"){
+                const updatedData = data.data
+                console.log('Received updated device:', updatedData);
+                // Обновляем данные в дереве
+                const deviceName = updatedData['device']
+                const is_connected = updatedData['state']
+                const deviceIndex = this.devices.findIndex(d => d.name === deviceName);
+                if (deviceIndex === -1) {
+                    console.error(`Устройство "${deviceName}" не найдено`);
+                    return false;
+                }
+                
+                const device = this.devices[deviceIndex];
+                device.connected = is_connected
+                device.last_seen = new Date().toISOString().substring(0, 19);
+                
             }
 
             });
@@ -108,6 +125,14 @@ new Vue({
             } catch (error) {
                 console.error("Error editing device:", error);
             }
+        },
+        async reconnect(device){
+                try {
+                const response = await axios.get('/api/ESPHome/reconnect/'+device.id);
+                    console.log("Device reconnect successfully:", response.data);
+                } catch (error) {
+                console.error("Error reconnect device:", error);
+                }
         },
         async removeDevice(device){
             if (confirm('Are you sure you want to delete this device?')) {

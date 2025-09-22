@@ -3,6 +3,8 @@
 <li class="breadcrumb-item"><a href="ESPHome">ESPHome </a></li>
 {% endblock %}
 {% block module %}
+<script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+
 <div class="container-fluid p-0" id="esphome_devices">  
     <!-- Page Header -->  
     <div class="row align-items-center ms-2 mb-1">  
@@ -55,14 +57,16 @@
                                     </td>  
                                     <td>  
                                             <span v-if="device.connected" class="badge bg-success">  
-                                                <i class="fas fa-wifi me-1"></i>{{ _('Connected') }}  
+                                                <iconify-icon icon="mdi:wifi" style="font-size: 12px;"></iconify-icon>
+                                                {{ _('Connected') }}  
                                             </span>  
                                             <span v-else class="badge bg-danger">  
-                                                <i class="fas fa-wifi me-1"></i>{{ _('Disconnected') }}  
+                                                <iconify-icon icon="mdi:wifi-remove" style="font-size: 12px;"></iconify-icon>
+                                                {{ _('Disconnected') }}  
                                             </span>  
                                     </td>  
                                     <td>  
-                                        <span class="badge bg-info">[[ device.sensors.length ]]</span>  
+                                        <span v-if="device.sensors" class="badge bg-info">[[ device.sensors.length ]]</span>  
                                     </td>  
                                     <td>  
                                         <small v-if="device.firmware_version">[[ device.firmware_version ]]</small>  
@@ -76,6 +80,9 @@
                                         <div class="btn-group" role="group">  
                                             <button class="btn btn-sm btn-primary" @click="editSensors(device)" title="{{ _('Edit Sensors') }}">  
                                                 <i class="fas fa-cogs"></i>  
+                                            </button>  
+                                            <button class="btn btn-sm btn-secondary" @click="reconnect(device)" title="{{ _('Reconnect') }}">  
+                                                <iconify-icon class="mt-1" icon="mdi:wifi-refresh" style="font-size: 20px;"></iconify-icon>
                                             </button>  
                                             <button class="btn btn-sm btn-warning" @click="editDevice(device)" title="{{ _('Edit') }}">  
                                                 <i class="fas fa-edit"></i>  
@@ -269,7 +276,6 @@
   
 {% block javascripts %} 
 <!-- Vue.js и Axios -->
- <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
 <script src="{{ config.ASSETS_ROOT }}/plugins/vue/vue@2.js"></script>
 <script src="{{ config.ASSETS_ROOT }}/plugins/vue/axios.min.js"></script>
 <script src="{{ config.ASSETS_ROOT }}/plugins/socket.io/socket.io.js"></script>

@@ -95,6 +95,26 @@ class GetESPHomeSensors(Resource):
         except Exception as e:
             _instance.logger.error(f"Error loading sensor editor: {e}")
             return "Error loading sensor editor", 500
+        
+@_api_ns.route("/reconnect/<int:device_id>", endpoint="esphome_reconnect")
+class ReconnectESPHomeDevice(Resource):
+    @api_key_required
+    @handle_admin_required
+    @_api_ns.doc(security="apikey")
+    def get(self,device_id):
+        try:
+            with session_scope() as session:
+                device = session.query(ESPHomeDevice).get(device_id)
+                if not device:
+                    return "Device not found", 404
+
+                _instance.update_connections(device)
+
+                return jsonify({'status': 'success'})
+
+        except Exception as e:
+            _instance.logger.error(f"Error reconnect device: {e}")
+            return "Error reconnect device", 500
 
 @_api_ns.route("/device", endpoint="esphome_device")
 class AddESPHomeDevice(Resource):

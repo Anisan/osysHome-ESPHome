@@ -80,10 +80,15 @@ class ESPHomeAPIClient:
 
     async def _on_connect_error(self,err: Exception) -> None:
         self.logger.error(f"Failed connect to '{self.name}' - {self.host}:{self.port}: {err}")
+        if self.connected_callback:
+            self.connected_callback()
+
 
     async def _on_disconnect(self, expected_disconnect: bool):
         """Called when connection is lost"""
         self.connected = False
+        if self.connected_callback:
+            self.connected_callback()
         self.logger.warning(f"Disconnected from '{self.name}' -  at {self.host}:{self.port} (expected_disconnect:{expected_disconnect})")
 
     async def force_reconnect(self):

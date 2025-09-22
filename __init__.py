@@ -135,7 +135,7 @@ class ESPHome(BasePlugin):
     def update_connections(self, device):
         if self.loop:
             asyncio.run_coroutine_threadsafe(self.async_update_connections(device), self.loop)
-
+    
     async def async_update_connections(self, device):
         """Update device connections"""
         client = self.api_clients[device.name]
@@ -178,19 +178,25 @@ class ESPHome(BasePlugin):
     def on_connected(self, dev):
         client = self.api_clients[dev['name']]
 
-        with session_scope() as session:
-            db_device = session.query(ESPHomeDevice).get(dev['id'])
+        if client.is_connected():
+            with session_scope() as session:
+                db_device = session.query(ESPHomeDevice).get(dev['id'])
 
-            # Update device info
-            device_info = client.device_info
-            if device_info:
-                db_device.firmware_version = device_info.get('esphome_version')
-                db_device.mac_address = device_info.get('mac_address')
-            db_device.last_seen = datetime.utcnow()
-            session.commit()
+                # Update device info
+                device_info = client.device_info
+                if device_info:
+                    db_device.firmware_version = device_info.get('esphome_version')
+                    db_device.mac_address = device_info.get('mac_address')
+                db_device.last_seen = datetime.utcnow()
+                session.commit()
 
-            # Discover sensors
-            self.discover_device_sensors(db_device, client)
+                # Discover sensors
+                self.discover_device_sensors(db_device, client)
+        
+        self.sendDataToWebsocket('device_update', {
+            'device': dev['name'],
+            'state': client.is_connected(),
+        })
 
     def _getStates(self, state):
         from aioesphomeapi import SensorState, LightState, ColorMode
