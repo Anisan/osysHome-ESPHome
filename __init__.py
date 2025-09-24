@@ -372,7 +372,7 @@ class ESPHome(BasePlugin):
                 prop_str = str(prop) if prop is not None else ""
                 pattern = f"{obj_str}.{prop_str}"
                 # Escape SQL wildcards if needed
-                escaped_pattern = f"%{pattern.replace('%', '\\%').replace('_', '\\_')}%"
+                escaped_pattern = "%" + pattern.replace('%', '\\%').replace('_', '\\_') + "%"
                 linked_sensors = (
                     session.query(ESPHomeSensor)
                     .filter(
