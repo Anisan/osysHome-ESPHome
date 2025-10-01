@@ -1,6 +1,7 @@
 import asyncio
 import threading
 import json
+import math
 from datetime import datetime
 from flask import redirect
 from app.core.main.BasePlugin import BasePlugin
@@ -10,6 +11,7 @@ from plugins.ESPHome.discovery import ESPHomeDiscovery
 from plugins.ESPHome.api_client import ESPHomeAPIClient
 from app.core.lib.object import getProperty, updateProperty
 from app.api import api
+from app.core.lib.converters import hex_to_rgb_float, convert_to_boolean
 
 class ESPHome(BasePlugin):
     def __init__(self, app):
@@ -138,9 +140,10 @@ class ESPHome(BasePlugin):
     
     async def async_update_connections(self, device):
         """Update device connections"""
-        client = self.api_clients[device.name]
-        await client.disconnect()
-        del self.api_clients[device.name]
+        if device.name in self.api_clients:
+            client = self.api_clients[device.name]
+            await client.disconnect()
+            del self.api_clients[device.name]
         await self.async_connect_device(device)
 
     def remove_device(self, device_name):
@@ -208,7 +211,7 @@ class ESPHome(BasePlugin):
             if state.color_mode in [ColorMode.BRIGHTNESS, ColorMode.LEGACY_BRIGHTNESS, ColorMode.RGB]:
                 result['brightness'] = state.brightness * 100
             if state.color_mode == ColorMode.RGB:
-                from plugins.ESPHome.utils import rgb_float_to_hex
+                from app.core.lib.converters import rgb_float_to_hex
                 result['rgb'] = rgb_float_to_hex(state.red, state.green, state.blue)
         else:
             result = state.to_dict()
@@ -216,6 +219,9 @@ class ESPHome(BasePlugin):
             del result['device_id']
             if 'missing_state' in result:
                 del result['missing_state']
+        if 'state' in result:
+            if math.isnan(result['state']):
+                result['state'] = None
         return result
 
     def on_state_change(self, device, state):
@@ -240,11 +246,6 @@ class ESPHome(BasePlugin):
                             self.logger.exception(ex)
 
                     str_values = json.dumps(values)
-                    #old_state = sensor.state
-                    
-                    #if old_state == str_values:
-                    #    return
-                    
                     sensor.state = str_values
                     sensor.last_updated = datetime.utcnow()
 
@@ -418,7 +419,7 @@ class ESPHome(BasePlugin):
 
             if sensor["entity_type"] == "switch":
                 # Convert value to boolean
-                state = self._convert_to_boolean(value)
+                state = convert_to_boolean(value)
                 success = client.set_switch_state(entity_key, state)
             elif sensor['entity_type'] == 'number':
                 success = client.set_number_state(entity_key, value)
@@ -432,17 +433,16 @@ class ESPHome(BasePlugin):
                     brightness = None
                     rgb = None
                     if 'state' in links:
-                        state = self._convert_to_boolean(getProperty(links['state']))
+                        state = convert_to_boolean(getProperty(links['state']))
                     if 'state' in links:
                         brightness = getProperty(links['brightness']) / 100
                     if 'rgb' in links:
                         hex_rgb = getProperty(links['rgb'])
-                        from plugins.ESPHome.utils import hex_to_rgb_float
                         rgb = hex_to_rgb_float(hex_rgb)
                     success = client.set_light_state(entity_key, state, brightness, rgb)
                 else:
                     # Simple on/off control
-                    state = self._convert_to_boolean(value)
+                    state = convert_to_boolean(value)
                     success = client.set_light_state(entity_key, state)
 
             elif sensor["entity_type"] == "cover":
@@ -472,13 +472,3 @@ class ESPHome(BasePlugin):
         except Exception as e:
             self.logger.error(f"Error controlling linked sensor {sensor['name']}({state}): {e}")
 
-    def _convert_to_boolean(self, value):
-        """Convert various value types to boolean"""
-        if isinstance(value, bool):
-            return value
-        elif isinstance(value, (int, float)):
-            return bool(value)
-        elif isinstance(value, str):
-            return value.lower() in ["true", "1", "on", "yes"]
-        else:
-            return bool(value)
