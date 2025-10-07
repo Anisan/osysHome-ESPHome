@@ -197,7 +197,7 @@ new Vue({
         saveLinks(){
             console.log(this.sensor, this.links)
             for (let link of this.links){
-                if (link.object != ''){
+                if (link.object && link.property){
                     var op = link.object + '.' + link.property
                     this.$set(this.sensor.links, link.name, op);
                 }

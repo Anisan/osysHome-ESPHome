@@ -217,7 +217,8 @@
                                     </td>
                                     <td>
                                         <div v-if="sensor.links" v-for="key in Object.keys(sensor.links)" :key="key">
-                                            <small class="text-muted">[[ key ]]:</small> <span v-if="sensor.links[key]" class="badge bg-secondary">[[ sensor.links[key] ]]</span>
+                                            <small class="text-muted">[[ key ]]:</small> 
+                                            <a v-if="sensor.links[key]" class="badge bg-secondary" :href="'/admin/Objects?view=object&object='+sensor.links[key].split('.')[0]+'&tab=properties'">[[ sensor.links[key] ]]</a>
                                         </div>
                                     </td>
                                     <td>

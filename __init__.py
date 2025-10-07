@@ -220,7 +220,7 @@ class ESPHome(BasePlugin):
             if 'missing_state' in result:
                 del result['missing_state']
         if 'state' in result:
-            if math.isnan(result['state']):
+            if isinstance(result['state'], float) and math.isnan(result['state']):
                 result['state'] = None
         return result
 
