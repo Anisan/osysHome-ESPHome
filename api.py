@@ -9,6 +9,7 @@ from plugins.ESPHome.models import ESPHomeDevice, ESPHomeSensor
 from app.database import session_scope
 from plugins.ESPHome import ESPHome
 from app.core.lib.object import setLinkToObject, removeLinkFromObject
+from app.core.main.ObjectsStorage import objects_storage
 
 _api_ns = Namespace(name="ESPHome", description="ESPHome namespace", validate=True)
 
@@ -23,6 +24,18 @@ def create_api_ns(instance:ESPHome):
     global _instance
     _instance = instance
     return _api_ns
+
+def _is_method_link(link: str) -> bool:
+    try:
+        if not link:
+            return False
+        if '.' in link and link.count('.') == 1:
+            obj_name, member = link.split('.')
+            obj = objects_storage.getObjectByName(obj_name)
+            return bool(obj and member in getattr(obj, 'methods', {}))
+        return False
+    except Exception:
+        return False
 
 @_api_ns.route("/devices", endpoint="esphome_devices")
 class GetESPHomeDevices(Resource):
@@ -60,7 +73,9 @@ class GetESPHomeDevices(Resource):
                     "name": device.name,
                     "host": device.host,
                     "port": device.port,
+                    "client_info": device.client_info,
                     "connected": connected,
+                    "enabled": device.enabled if device.enabled is not None else True,
                     "last_seen": (
                         device.last_seen.isoformat() if device.last_seen else None
                     ),
@@ -138,6 +153,7 @@ class AddESPHomeDevice(Resource):
                     device.name = data['name']
                     device.host = data['host']
                     device.port = data['port']
+                    device.client_info = data['client_info']
                     session.add(device)
                     session.commit()
                     if_new = True
@@ -147,10 +163,16 @@ class AddESPHomeDevice(Resource):
                 if device.name != data['name']:
                     _instance.remove_device(device.name)
                     if_new = True
+                
+                # Проверяем изменение флага enabled
+                enabled_changed = device.enabled != data.get('enabled', True)
+                
                 device.name = data['name']
                 device.host = data['host']
                 device.port = data['port']
                 device.password = data.get('password', None)
+                device.client_info = data.get('client_info', None)
+                device.enabled = data.get('enabled', True)
                 if data['sensors']:
                     for sensor in data['sensors']:
                         sensor_obj = session.query(ESPHomeSensor).where(ESPHomeSensor.id == sensor['id']).one_or_none()
@@ -158,20 +180,24 @@ class AddESPHomeDevice(Resource):
                             if sensor_obj.links:
                                 links = json.loads(sensor_obj.links)
                                 for _, link in links.items():
-                                    if link:
+                                    if link and not _is_method_link(link):
                                         op = link.split('.')
                                         removeLinkFromObject(op[0], op[1], _instance.name)
                             links = sensor['links']
                             sensor_obj.links = json.dumps(links)
                             for _, link in links.items():
-                                if link:
+                                if link and not _is_method_link(link):
                                     op = link.split('.')
                                     setLinkToObject(op[0], op[1], _instance.name)
                 session.commit()
+                
+                # Обновляем объект из сессии для получения актуальных данных
+                session.refresh(device)
 
+                # Обновляем подключение если изменился флаг enabled или параметры подключения
                 if if_new:
                     _instance.connect_device(device)
-                elif if_update:
+                elif if_update or enabled_changed:
                     _instance.update_connections(device)
 
             return jsonify({'status': 'success'})

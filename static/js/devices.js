@@ -11,6 +11,8 @@ new Vue({
             host: '',
             port: '6053',
             password: '',
+            client_info: '',
+            enabled: true,
         },
         title_button:"Add",
         device: undefined,
@@ -19,8 +21,8 @@ new Vue({
     },
     async created() {
         this.device = {...this.default_device}
-        this.fetchObjects()
         await this.fetchDevices()
+        this.fetchObjects()
         this.connectSocket(); 
     },
     mounted() {
@@ -96,7 +98,16 @@ new Vue({
         fetchObjects(){
                 axios.get(`/api/object/list/details`)
                     .then(response => {
-                        this.objects = response.data.result
+                        var objects = {};
+                        Object.keys(response.data.result).forEach(key => {
+                            objects[key] = {...response.data.result[key]};
+                            if (!objects[key].properties) {
+                                objects[key].properties = {};
+                            }
+                            objects[key].properties['description'] = 'Описание';
+                        });
+                        this.objects = objects;
+                        console.log('Objects:', this.objects);
                     })
                     .catch(error => {
                         console.log(error)
@@ -166,6 +177,7 @@ new Vue({
             $('#sensorsModal').modal('hide');
             this.fetchDevices()
         },
+        
         editSensor(sensor){
             var states = {...sensor.state}
             for (let key of Object.keys(states)) {
@@ -176,17 +188,29 @@ new Vue({
             for (let key of Object.keys(states)) {
                 var op = states[key].split('.')
                 if (op.length == 2){
+                    var property = ''
+                    var method = ''
+                    if (op[0] in this.objects) {
+                        if (op[1] in this.objects[op[0]].properties) {
+                            property = op[1]
+                        }
+                        else if (op[1] in this.objects[op[0]].methods) {
+                            method = op[1]
+                        }
+                    }
                     links.push({
                         'name': key,
                         'object': op[0],
-                        'property': op[1]
+                        'property': property,
+                        'method': method,
                     })
                 }
                 else
                     links.push({
                         'object': '',
                         'name': key,
-                        'property': ''
+                        'property': '',
+                        'method': ''
                     })
             }           
             console.log(links)
@@ -199,6 +223,10 @@ new Vue({
             for (let link of this.links){
                 if (link.object && link.property){
                     var op = link.object + '.' + link.property
+                    this.$set(this.sensor.links, link.name, op);
+                }
+                else if (link.object && link.method){
+                    var op = link.object + '.' + link.method
                     this.$set(this.sensor.links, link.name, op);
                 }
                 else

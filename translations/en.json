@@ -1,8 +1,10 @@
 {
   "API password if configured on the device": "API password if configured on the device",
   "Add Device": "Add Device",
+  "Client info (optional)": "Client info (optional)",
   "Configuration": "Configuration",
   "Device Name": "Device Name",
+  "Disabled": "Disabled",
   "Disconnected": "Disconnected",
   "Discover": "Discover",
   "Discovery Interval (seconds)": "Discovery Interval (seconds)",
@@ -12,6 +14,7 @@
   "ESPHome Integration": "ESPHome Integration",
   "Edit Sensors": "Edit Sensors",
   "Enable Auto Discovery": "Enable Auto Discovery",
+  "Enable device connection": "Enable device connection",
   "Host/IP Address": "Host/IP Address",
   "IP address or hostname of the ESPHome device": "IP address or hostname of the ESPHome device",
   "Last Seen": "Last Seen",
@@ -24,5 +27,7 @@
   "Total Devices": "Total Devices",
   "Unique name for this device": "Unique name for this device",
   "Unknown": "Unknown",
-  "Values": "Values"
+  "User Agent string": "User Agent string",
+  "Values": "Values",
+  "When disabled, the device will not connect to ESPHome": "When disabled, the device will not connect to ESPHome"
 }

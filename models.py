@@ -10,6 +10,7 @@ class ESPHomeDevice(SurrogatePK, db.Model):
     host = Column(String(255), nullable=False)
     port = Column(Integer, default=6053)
     password = Column(String(255))
+    client_info = Column(String(50))
     firmware_version = Column(String(100))
     mac_address = Column(String(17))
     discovered_at = Column(DateTime)

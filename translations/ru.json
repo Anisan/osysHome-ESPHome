@@ -1,8 +1,10 @@
 {
   "API password if configured on the device": "Пароль API, если он настроен на устройстве",
   "Add Device": "Добавить устройство",
+  "Client info (optional)": "Информация о клиенте (опционально)",
   "Configuration": "Конфигурация",
   "Device Name": "Имя устройства",
+  "Disabled": "Отключено",
   "Disconnected": "Отключено",
   "Discover": "Обнаружить",
   "Discovery Interval (seconds)": "Интервал обнаружения (секунды)",
@@ -12,6 +14,7 @@
   "ESPHome Integration": "Интеграция ESPHome",
   "Edit Sensors": "Редактировать датчики",
   "Enable Auto Discovery": "Включить автоматическое обнаружение",
+  "Enable device connection": "Включить подключение устройства",
   "Host/IP Address": "Хост/IP-адрес",
   "IP address or hostname of the ESPHome device": "IP-адрес или имя хоста устройства ESPHome",
   "Last Seen": "Последнее подключение",
@@ -24,5 +27,7 @@
   "Total Devices": "Всего устройств",
   "Unique name for this device": "Уникальное имя для этого устройства",
   "Unknown": "Неизвестно",
-  "Values": "Значения"
+  "User Agent string": "Строка User Agent",
+  "Values": "Значения",
+  "When disabled, the device will not connect to ESPHome": "Когда отключено, устройство не будет подключаться к ESPHome"
 }

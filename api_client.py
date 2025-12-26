@@ -1,22 +1,24 @@
-from typing import List, Optional, Callable
+from typing import List, Optional, Callable, Any
 from aioesphomeapi import APIClient, ReconnectLogic, ColorMode
 from app.logging_config import getLogger
 
 class ESPHomeAPIClient:
-    def __init__(self, name: str, host: str, port: int = 6053, password: str = "", logger=None):
+    def __init__(self, name: str, host: str, port: int = 6053, password: str = "", client_info: str='osysHome', logger=None):
         self.name = name
         self.host = host
         self.port = port
         self.password = password
         self.logger = logger or getLogger('ESPHome.APIClient')
 
-        self.client = APIClient(host, port, password)
+        self.client = APIClient(host, port, password, client_info=client_info)
         self.reconnect_logic = None
         self.connected = False
         self.device_info = None
         self.entities = None
         self.state_callback: Optional[Callable] = None
         self.connected_callback: Optional[Callable] = None
+        self.ha_subscribe_callback: Optional[Callable] = None
+        self.service_callback: Optional[Callable] = None
 
     async def connect(self) -> bool:
         """Connect to ESPHome device with automatic reconnection"""
@@ -67,22 +69,45 @@ class ESPHomeAPIClient:
         # List entities
         self.entities = await self.list_entities()
 
+        # Подписка на все Home Assistant states и services (всегда подписываемся)
+        self.client.subscribe_home_assistant_states_and_services(
+            on_state=self.on_state,
+            on_service_call=self.on_service_call,
+            on_state_sub=self.on_ha_state_subscribed,
+            on_state_request=self.on_ha_state_request,
+        )
+
         if self.connected_callback:
             self.connected_callback()
 
-        # Re-subscribe to state changes after reconnection
+    def on_state(self, state: Any):
+        """Handle Home Assistant entity state updates"""
+        #self.logger.debug(f"ESPHome {self.name} entity state update: {state}")
         if self.state_callback:
-            try:
-                self.client.subscribe_states(self.state_callback)
-                self.logger.debug(f"Subscribed to states for '{self.name}' - {self.host}:{self.port}")
-            except Exception as e:
-                self.logger.error(f"Failed to re-subscribe to states: {e}")
+            self.state_callback(state)
+
+    def on_service_call(self, service_call: Any):
+        """Handle Home Assistant service calls"""
+        #self.logger.debug(f"ESPHome HA service call: {service_call}")
+        if self.service_callback:
+            self.service_callback(service_call)
+
+    def on_ha_state_subscribed(self, entity_id: str, attribute: str | None):
+        """Handle Home Assistant state subscription requests"""
+        if self.ha_subscribe_callback:
+            self.logger.debug(f"ESPHome HA state subscribe {entity_id} {attribute}")
+            self.ha_subscribe_callback(entity_id, attribute)
+
+    def on_ha_state_request(self, entity_id: str, attribute: str | None):
+        """Handle Home Assistant state requests"""
+        self.logger.debug(f"ESPHome {self.name} HA state request: {entity_id}, attribute: {attribute}")
+        # Можно добавить обработку запросов состояний
+        # Например, отправить текущее состояние из кэша или запросить его
 
     async def _on_connect_error(self,err: Exception) -> None:
         self.logger.error(f"Failed connect to '{self.name}' - {self.host}:{self.port}: {err}")
         if self.connected_callback:
             self.connected_callback()
-
 
     async def _on_disconnect(self, expected_disconnect: bool):
         """Called when connection is lost"""
@@ -168,6 +193,14 @@ class ESPHomeAPIClient:
         """Set callback for state changes"""
         self.state_callback = callback
 
+    def set_ha_subscribe_callback(self, callback: Callable):
+        """Set callback for Home Assistant state subscriptions"""
+        self.ha_subscribe_callback = callback
+
+    def set_service_callback(self, callback: Callable):
+        """Set callback for ESPHome service executions"""
+        self.service_callback = callback
+
     async def subscribe_states(self, callback: Callable):
         """Subscribe to state changes"""
         try:
@@ -179,6 +212,17 @@ class ESPHomeAPIClient:
 
         except Exception as e:
             self.logger.error(f"Failed to subscribe to states: {e}")
+            return False
+
+    def send_home_assistant_state(self, entity: str, attribute:str, state: str) -> bool:
+        """Control number entity"""
+        try:
+            if not self.is_connected():
+                return False
+            self.client.send_home_assistant_state(entity, attribute, state)
+            return True
+        except Exception as e:
+            self.logger.error(f"Failed to send homeassistant state: {e}")
             return False
 
     def set_number_state(self, key: int, state: float) -> bool:
@@ -235,4 +279,21 @@ class ESPHomeAPIClient:
 
         except Exception as e:
             self.logger.error(f"Failed to set light state: {e}")
+            return False
+
+    def cover_command(
+        self, key: int, position: float = None, tilt: float = None, stop: bool = False
+    ) -> bool:
+        """Control cover entity"""
+        try:
+            if not self.is_connected():
+                return False
+
+            self.client.cover_command(
+                key=key, position=position, tilt=tilt, stop=stop
+            )
+            return True
+
+        except Exception as e:
+            self.logger.error(f"Failed to set cover state: {e}")
             return False

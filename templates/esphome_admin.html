@@ -3,7 +3,6 @@
 <li class="breadcrumb-item"><a href="ESPHome">ESPHome </a></li>
 {% endblock %}
 {% block module %}
-<script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
 
 <div class="container-fluid p-0" id="esphome_devices">  
     <!-- Page Header -->  
@@ -56,15 +55,25 @@
                                         <small class="text-muted">[[ device.host ]]:[[ device.port ]]</small>  
                                     </td>  
                                     <td>  
-                                            <span v-if="device.connected" class="badge bg-success">  
+                                        <div v-if="!device.enabled">
+                                            <span class="badge bg-secondary">
+                                                <iconify-icon icon="mdi:power" style="font-size: 12px;"></iconify-icon>
+                                                {{ _('Disabled') }}
+                                            </span>
+                                        </div>
+                                        <div v-else-if="device.connected">
+                                            <span class="badge bg-success">  
                                                 <iconify-icon icon="mdi:wifi" style="font-size: 12px;"></iconify-icon>
                                                 {{ _('Connected') }}  
-                                            </span>  
-                                            <span v-else class="badge bg-danger">  
+                                            </span>
+                                        </div>
+                                        <div v-else>
+                                            <span class="badge bg-danger">  
                                                 <iconify-icon icon="mdi:wifi-remove" style="font-size: 12px;"></iconify-icon>
                                                 {{ _('Disconnected') }}  
-                                            </span>  
-                                    </td>  
+                                            </span>
+                                        </div>
+                                    </td>
                                     <td>  
                                         <span v-if="device.sensors" class="badge bg-info">[[ device.sensors.length ]]</span>  
                                     </td>  
@@ -165,6 +174,20 @@
                             <label for="device_password" class="form-label">{{ _('Password (optional)') }}</label>  
                             <input v-model="device.password" type="password" class="form-control">  
                             <div class="form-text">{{ _('API password if configured on the device') }}</div>  
+                        </div>
+                        <div class="mb-3">  
+                            <label for="device_client_info" class="form-label">{{ _('Client info (optional)') }}</label>  
+                            <input v-model="device.client_info" type="text" class="form-control">  
+                            <div class="form-text">{{ _('User Agent string') }}</div>  
+                        </div>
+                        <div class="mb-3">  
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="device_enabled" v-model="device.enabled">
+                                <label class="form-check-label" for="device_enabled">
+                                    {{ _('Enable device connection') }}
+                                </label>
+                            </div>
+                            <div class="form-text">{{ _('When disabled, the device will not connect to ESPHome') }}</div>  
                         </div>  
                 </div>  
                 <div class="modal-footer">  
@@ -242,7 +265,7 @@
         </div>  
     </div>
     <div class="modal fade" id="sensorModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-dialog modal-dialog-centered modal-lg">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title" id="exampleModalLabel">{{ _('Settings link')}}</h5>
@@ -258,6 +281,9 @@
                                     </div>
                                     <div v-if="sensor.object && sensor.object in objects">
                                         <select-with-filter placeholder="{{ _('Select property')}}" :options="objects[sensor.object].properties" v-model="sensor.property"></select-with-filter>
+                                    </div>
+                                    <div v-if="sensor.object && sensor.object in objects">
+                                        <select-with-filter placeholder="{{ _('Select method')}}" :options="objects[sensor.object].methods" v-model="sensor.method"></select-with-filter>
                                     </div>
                                 </div>
                             </div>
