@@ -4,7 +4,7 @@
 {% endblock %}
 {% block module %}
 
-<div class="container-fluid p-0" id="esphome_devices">  
+<div class="container-fluid p-0" id="esphome_devices" v-cloak>  
     <!-- Page Header -->  
     <div class="row align-items-center ms-2 mb-1">  
         <div class="col-auto">
@@ -302,6 +302,7 @@
 {% endblock %}  
   
 {% block javascripts %} 
+{{ super() }}
 <!-- Vue.js и Axios -->
 <script src="{{ config.ASSETS_ROOT }}/plugins/vue/vue@2.js"></script>
 <script src="{{ config.ASSETS_ROOT }}/plugins/vue/axios.min.js"></script>
