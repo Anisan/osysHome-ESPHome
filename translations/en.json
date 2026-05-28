@@ -20,6 +20,5 @@
   "Sensors": "Sensors",
   "Unique name for this device": "Unique name for this device",
   "User Agent string": "User Agent string",
-  "Values": "Values",
   "When disabled, the device will not connect to ESPHome": "When disabled, the device will not connect to ESPHome"
 }

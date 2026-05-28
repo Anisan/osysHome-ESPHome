@@ -20,6 +20,5 @@
   "Sensors": "Датчики",
   "Unique name for this device": "Уникальное имя для этого устройства",
   "User Agent string": "Строка User Agent",
-  "Values": "Значения",
   "When disabled, the device will not connect to ESPHome": "Когда отключено, устройство не будет подключаться к ESPHome"
 }
